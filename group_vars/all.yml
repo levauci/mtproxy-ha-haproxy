@@ -1,0 +1,5 @@
+mtproxy_replicas: 2
+mtproxy_image: "mtproxy/mtproxy:latest"
+mtproxy_secret: "dd00000000000000000000000000000000"
+mtproxy_base_port: 10000
+haproxy_port: 443

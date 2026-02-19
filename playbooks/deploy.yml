@@ -1,0 +1,7 @@
+- hosts: mtproxy-server
+  become: yes
+  roles:
+    - common
+    - tproxy
+    - mtproxy
+    - haproxy

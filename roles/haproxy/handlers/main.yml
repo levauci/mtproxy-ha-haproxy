@@ -1,0 +1,11 @@
+---
+- name: Reload HAProxy gracefully
+  ansible.builtin.shell: |
+    if haproxy -f /etc/haproxy/haproxy.cfg -c; then
+      systemctl reload haproxy
+      echo "HAProxy reloaded successfully (zero-downtime)"
+    else
+      echo "HAProxy config check FAILED!"
+      exit 1
+    fi
+  changed_when: false

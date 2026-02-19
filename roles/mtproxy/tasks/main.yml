@@ -1,0 +1,19 @@
+---
+- name: Launch MTProxy containers ({{ mtproxy_replicas }} replicas)
+  docker_container:
+    name: "mtproxy-{{ item }}"
+    image: "{{ mtproxy_image }}"
+    platform: linux/amd64          # <-- добавили, чтобы запускалось на Apple Silicon
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "{{ mtproxy_base_port + item }}:443"
+    env:
+      SECRET: "{{ mtproxy_secret }}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:443"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+  loop: "{{ range(0, mtproxy_replicas | int) | list }}"

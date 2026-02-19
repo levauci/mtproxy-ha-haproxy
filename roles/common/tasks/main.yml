@@ -1,0 +1,35 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install required packages
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - python3-docker
+      - iptables-persistent
+      - haproxy
+      - qemu-user-static          # ← для запуска amd64 образов на arm64
+      - binfmt-support
+    state: present
+    update_cache: yes
+
+- name: Restart Docker after qemu installation
+  systemd:
+    name: docker
+    state: restarted
+
+- name: Enable and start Docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Add vagrant user to docker group
+  user:
+    name: vagrant
+    groups: docker
+    append: yes

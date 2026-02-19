@@ -1,0 +1,5 @@
+mtproxy_replicas: 2
+mtproxy_image: "telegrammessenger/proxy:latest"
+mtproxy_secret: "{{ lookup('password', '/dev/null length=32 chars=0123456789abcdef') | replace('\n','') }}"
+mtproxy_base_port: 10000
+haproxy_port: 443

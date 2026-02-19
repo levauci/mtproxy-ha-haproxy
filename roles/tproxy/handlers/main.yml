@@ -1,0 +1,4 @@
+---
+- name: Apply sysctl
+  command: sysctl -p /etc/sysctl.d/99-tproxy.conf
+  changed_when: false
