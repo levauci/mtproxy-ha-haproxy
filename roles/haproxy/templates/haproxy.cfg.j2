@@ -1,9 +1,10 @@
 global
-    daemon
     maxconn 10000
     log /dev/log local0
     stats socket /run/haproxy/admin.sock mode 660 level admin
     stats timeout 30s
+    user haproxy
+    group haproxy
 
 defaults
     mode tcp

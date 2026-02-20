@@ -25,7 +25,7 @@
     group: root
     mode: "0644"
   notify:
-    - Reload systemd daemon
+    - Reload systemd daemon for tproxy
     - Restart tproxy service
 
 - name: Enable and start tproxy service

@@ -1,5 +1,2 @@
 ---
-- name: Restart Docker
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted
+# No handlers needed; Docker is managed directly via systemd tasks.

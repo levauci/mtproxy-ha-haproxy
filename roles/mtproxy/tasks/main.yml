@@ -5,6 +5,7 @@
     image: "{{ mtproxy_image }}"
     platform: linux/amd64
     state: started
+    pull: true
     restart_policy: unless-stopped
     ports:
       - "{{ mtproxy_base_port + item - 1 }}:443"

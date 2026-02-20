@@ -7,9 +7,10 @@
 | Компонент | Зачем |
 |-----------|-------|
 | **HAProxy (TCP mode)** | L4-балансировка с health-check, graceful reload без разрыва соединений |
-| **TPROXY + transparent** | Сохранение исходного IP клиента в пакетах (в отличие от DNAT/SNAT, backend видит реальный адрес) |
+| **TPROXY + transparent** | Сохранение исходного IP клиента в пакетах (в отличие от DNAT/SNAT, backend видит реальный адрес). Альтернатива — PROXY protocol — не поддерживается MTProxy, а X-Forwarded-For неприменим для TCP |
 | **leastconn** | Равномерное распределение при разном числе активных подключений на backend-ах |
-| **Ansible роли** | Разделение на `common`, `tproxy`, `mtproxy`, `haproxy` для масштабируемости и читаемости |
+| **CAP_NET_ADMIN / CAP_NET_RAW** | HAProxy работает от непривилегированного пользователя `haproxy`, но получает Linux capabilities через systemd drop-in для создания transparent-сокетов |
+| **Ansible роли** | Разделение на `common`, `tproxy`, `mtproxy`, `haproxy` — каждая роль самодокументирована (`defaults/main.yml`, `meta/main.yml`) |
 
 ## Архитектура
 
@@ -18,6 +19,8 @@ Client -> HAProxy (port 443, TCP, transparent)
           ├─> mtproxy1 (127.0.0.1:10000)
           └─> mtproxy2 (127.0.0.1:10001)
 ```
+
+HAProxy принимает подключения на порт 443 с опцией `transparent`, сохраняя реальный IP клиента. Iptables TPROXY + policy routing обеспечивают корректную маршрутизацию пакетов. Health checks (`tcp-check connect`, `inter 2000 fall 3 rise 2`) автоматически выводят недоступные backend-ы из балансировки.
 
 ## Требования
 
@@ -36,6 +39,8 @@ Client -> HAProxy (port 443, TCP, transparent)
 | `mtproxy_base_port` | `10000` | Базовый порт (контейнеры получают 10000, 10001, …) |
 | `haproxy_port` | `443` | Внешний порт приёма соединений |
 | `haproxy_balance_algorithm` | `leastconn` | Алгоритм балансировки |
+
+Каждая роль также содержит `defaults/main.yml` с дефолтами для своих переменных.
 
 ## Развёртывание
 
@@ -84,6 +89,7 @@ echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,
 docker stop mtproxy2
 
 # 3. Подождать ~6 сек (inter 2000 * fall 3) и проверить статус
+sleep 7
 echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,2,18
 # mtproxies,mtp1,UP
 # mtproxies,mtp2,DOWN
@@ -97,7 +103,10 @@ journalctl -u haproxy --no-pager -n 20 | grep -E "DOWN|UP"
 # 6. Вернуть обратно
 docker start mtproxy2
 # Через ~4 сек (inter 2000 * rise 2):
-# ... Server mtproxies/mtp2 is UP ...
+sleep 5
+echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,2,18
+# mtproxies,mtp1,UP
+# mtproxies,mtp2,UP
 ```
 
 **Итог**: при `docker stop mtproxy2` HAProxy автоматически переключает весь трафик на `mtproxy1`. Клиенты Telegram продолжают работать без разрыва.
@@ -141,6 +150,18 @@ tg://proxy?server=YOUR_SERVER_IP&port=8443&secret=dd0000000000000000000000000000
 
 (Порт `8443` — forwarded_port с хоста; на реальном сервере используйте `443` напрямую.)
 
+## Структура ролей
+
+```text
+roles/
+├── common/    — базовые пакеты (Docker, HAProxy, iptables, QEMU binfmt)
+├── tproxy/    — sysctl, iptables TPROXY, systemd unit
+├── mtproxy/   — Docker-контейнеры MTProxy (масштабируемые через mtproxy_replicas)
+└── haproxy/   — конфигурация HAProxy, systemd drop-in для capabilities
+```
+
+Каждая роль содержит: `tasks/`, `handlers/`, `defaults/`, `meta/`, `templates/` (где применимо).
+
 ## Troubleshooting
 
 | Проблема | Решение |
@@ -149,3 +170,4 @@ tg://proxy?server=YOUR_SERVER_IP&port=8443&secret=dd0000000000000000000000000000
 | HAProxy не стартует | `haproxy -c -f /etc/haproxy/haproxy.cfg` — проверить синтаксис конфига |
 | TPROXY не работает | `iptables -t mangle -L -n` — убедиться что chain `HAPROXY_TPROXY` существует |
 | Контейнер не стартует | `docker logs mtproxy1` — проверить секрет и образ |
+| Нет доступа к stats socket | Убедиться что пользователь в группе `haproxy`: `groups vagrant` |

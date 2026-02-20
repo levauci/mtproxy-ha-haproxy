@@ -4,8 +4,31 @@
   become: true
   vars_files:
     - ../group_vars/all.yml
-  roles:
-    - common
-    - tproxy
-    - mtproxy
-    - haproxy
+  tasks:
+    - name: Apply common role
+      ansible.builtin.include_role:
+        name: common
+
+    - name: Flush handlers after common
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply tproxy role
+      ansible.builtin.include_role:
+        name: tproxy
+
+    - name: Flush handlers after tproxy
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply mtproxy role
+      ansible.builtin.include_role:
+        name: mtproxy
+
+    - name: Flush handlers after mtproxy
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply haproxy role
+      ansible.builtin.include_role:
+        name: haproxy
+
+    - name: Flush handlers after haproxy
+      ansible.builtin.meta: flush_handlers

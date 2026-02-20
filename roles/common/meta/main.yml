@@ -1,0 +1,10 @@
+---
+dependencies: []
+galaxy_info:
+  author: virton
+  description: Base packages — Docker, HAProxy, iptables, QEMU binfmt
+  min_ansible_version: "2.12"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
