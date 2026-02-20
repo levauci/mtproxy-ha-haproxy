@@ -1,7 +1,43 @@
-- hosts: mtproxy-server
-  become: yes
-  roles:
-    - common
-    - tproxy
-    - mtproxy
-    - haproxy
+---
+- name: Deploy MTProxy HA stack
+  hosts: all
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  tasks:
+    - name: Apply common role
+      ansible.builtin.include_role:
+        name: common
+      tags: [common, setup]
+
+    - name: Flush handlers after common
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply tproxy role
+      ansible.builtin.include_role:
+        name: tproxy
+      tags: [tproxy, setup]
+
+    - name: Flush handlers after tproxy
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply mtproxy role
+      ansible.builtin.include_role:
+        name: mtproxy
+      tags: [mtproxy, scale]
+
+    - name: Flush handlers after mtproxy
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apply haproxy role
+      ansible.builtin.include_role:
+        name: haproxy
+      tags: [haproxy, config, scale]
+
+    - name: Flush handlers after haproxy
+      ansible.builtin.meta: flush_handlers
+
+    - name: Run smoke tests
+      ansible.builtin.include_role:
+        name: verify
+      tags: [verify]

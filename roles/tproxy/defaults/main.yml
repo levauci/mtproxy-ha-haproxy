@@ -1,0 +1,3 @@
+---
+tproxy_fwmark: "1"
+tproxy_route_table: "100"

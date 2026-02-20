@@ -1,0 +1,43 @@
+---
+- name: Check MTProxy containers are running
+  community.docker.docker_container_info:
+    name: "mtproxy{{ item }}"
+  register: verify_mtproxy_info
+  loop: "{{ range(1, (mtproxy_replicas | int) + 1) | list }}"
+  failed_when: not verify_mtproxy_info.container.State.Running
+
+- name: Wait for HAProxy backends to become healthy
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ mtproxy_base_port + item - 1 }}"
+    timeout: 30
+  loop: "{{ range(1, (mtproxy_replicas | int) + 1) | list }}"
+
+- name: Query HAProxy stats for each backend
+  ansible.builtin.shell:
+    cmd: >
+      set -o pipefail &&
+      echo "show stat" | socat stdio /run/haproxy/admin.sock
+      | grep -E "^mtproxies,mtp{{ item }},"
+      | cut -d, -f18
+    executable: /bin/bash
+  register: verify_backend_status
+  changed_when: false
+  loop: "{{ range(1, (mtproxy_replicas | int) + 1) | list }}"
+
+- name: Verify all backends are UP in HAProxy
+  ansible.builtin.assert:
+    that:
+      - "item.stdout is match('UP.*')"
+    fail_msg: "Backend mtp{{ item.item }} status is '{{ item.stdout }}', expected 'UP'"
+    success_msg: "Backend mtp{{ item.item }} is {{ item.stdout }}"
+  loop: "{{ verify_backend_status.results }}"
+  loop_control:
+    label: "mtp{{ item.item }}"
+
+- name: Verify HAProxy stats page is reachable
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ haproxy_stats_port }}/stats"
+    return_content: false
+    status_code: 200
+  register: verify_stats_page
