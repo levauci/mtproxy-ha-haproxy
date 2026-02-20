@@ -9,7 +9,7 @@
 | **HAProxy (TCP mode)** | L4-балансировка с health-check, graceful reload без разрыва соединений |
 | **TPROXY + transparent** | Сохранение исходного IP клиента в пакетах (в отличие от DNAT/SNAT, backend видит реальный адрес). Альтернатива — PROXY protocol — не поддерживается MTProxy, а X-Forwarded-For неприменим для TCP |
 | **leastconn** | Равномерное распределение при разном числе активных подключений на backend-ах |
-| **CAP_NET_ADMIN / CAP_NET_RAW** | HAProxy работает от непривилегированного пользователя `haproxy`, но получает Linux capabilities через systemd drop-in для создания transparent-сокетов |
+| **CAP_NET_ADMIN / CAP_NET_RAW** | HAProxy 2.4 требует полных привилегий для transparent-сокетов; systemd drop-in гарантирует наличие capabilities, stats-сокет ограничен группой `haproxy` |
 | **Ansible роли** | Разделение на `common`, `tproxy`, `mtproxy`, `haproxy` — каждая роль самодокументирована (`defaults/main.yml`, `meta/main.yml`) |
 
 ## Архитектура
@@ -165,7 +165,7 @@ ansible-playbook playbooks/deploy.yml \
 ## Telegram-ссылка
 
 ```text
-tg://proxy?server=YOUR_SERVER_IP&port=8443&secret=dd00000000000000000000000000000000
+tg://proxy?server=YOUR_SERVER_IP&port=8443&secret=00000000000000000000000000000000
 ```
 
 (Порт `8443` — forwarded_port с хоста; на реальном сервере используйте `443` напрямую.)
