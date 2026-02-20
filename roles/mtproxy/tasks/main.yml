@@ -1,6 +1,6 @@
 ---
-- name: Launch MTProxy containers ({{ mtproxy_replicas }} replicas)
-  docker_container:
+- name: Launch MTProxy containers
+  community.docker.docker_container:
     name: "mtproxy{{ item }}"
     image: "{{ mtproxy_image }}"
     platform: linux/amd64
@@ -11,3 +11,17 @@
     env:
       SECRET: "{{ mtproxy_secret }}"
   loop: "{{ range(1, (mtproxy_replicas | int) + 1) | list }}"
+
+- name: List existing mtproxy containers
+  ansible.builtin.shell: >
+    docker ps -a --filter "name=^mtproxy" --format "{{ '{{' }}.Names{{ '}}' }}"
+  register: mtproxy_existing_containers
+  changed_when: false
+
+- name: Remove excess MTProxy containers on scale-down
+  community.docker.docker_container:
+    name: "{{ item }}"
+    state: absent
+    force_kill: true
+  loop: "{{ mtproxy_existing_containers.stdout_lines | default([]) }}"
+  when: item | regex_replace('^mtproxy', '') | int > (mtproxy_replicas | int)

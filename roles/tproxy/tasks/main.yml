@@ -1,35 +1,35 @@
 ---
 - name: Template sysctl settings for TProxy
-  template:
+  ansible.builtin.template:
     src: sysctl.conf.j2
     dest: /etc/sysctl.d/99-tproxy.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: Apply sysctl
 
 - name: Template TProxy routing rules
-  template:
+  ansible.builtin.template:
     src: tproxy-rules.sh.j2
     dest: /usr/local/sbin/tproxy-rules.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   notify: Restart tproxy service
 
 - name: Install tproxy systemd unit
-  template:
+  ansible.builtin.template:
     src: tproxy.service.j2
     dest: /etc/systemd/system/tproxy.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify:
     - Reload systemd daemon
     - Restart tproxy service
 
 - name: Enable and start tproxy service
-  systemd:
+  ansible.builtin.systemd:
     name: tproxy
     daemon_reload: true
     enabled: true
