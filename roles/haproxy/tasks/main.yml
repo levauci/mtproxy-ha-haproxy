@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: '0644'
+    validate: "haproxy -c -f %s"
   notify: Reload HAProxy gracefully
 
 - name: Enable and start HAProxy service

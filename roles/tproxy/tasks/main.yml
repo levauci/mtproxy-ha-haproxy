@@ -11,11 +11,26 @@
 - name: Template TProxy routing rules
   template:
     src: tproxy-rules.sh.j2
-    dest: /etc/network/if-up.d/tproxy
+    dest: /usr/local/sbin/tproxy-rules.sh
     owner: root
     group: root
     mode: '0755'
+  notify: Restart tproxy service
 
-- name: Apply TProxy rules immediately
-  command: /etc/network/if-up.d/tproxy
-  changed_when: false
+- name: Install tproxy systemd unit
+  template:
+    src: tproxy.service.j2
+    dest: /etc/systemd/system/tproxy.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd daemon
+    - Restart tproxy service
+
+- name: Enable and start tproxy service
+  systemd:
+    name: tproxy
+    daemon_reload: true
+    enabled: true
+    state: started
