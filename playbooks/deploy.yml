@@ -12,6 +12,7 @@
 
     - name: Flush handlers (common)
       ansible.builtin.meta: flush_handlers
+      tags: [always]
 
     - name: Configure TPROXY routing
       ansible.builtin.include_role:
@@ -20,6 +21,7 @@
 
     - name: Flush handlers (tproxy)
       ansible.builtin.meta: flush_handlers
+      tags: [always]
 
     - name: Launch MTProxy containers
       ansible.builtin.include_role:
@@ -28,6 +30,7 @@
 
     - name: Flush handlers (mtproxy)
       ansible.builtin.meta: flush_handlers
+      tags: [always]
 
     - name: Configure HAProxy
       ansible.builtin.include_role:
@@ -36,6 +39,7 @@
 
     - name: Flush handlers (haproxy)
       ansible.builtin.meta: flush_handlers
+      tags: [always]
 
     - name: Run smoke tests
       ansible.builtin.include_role:

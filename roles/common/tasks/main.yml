@@ -20,9 +20,9 @@
     enabled: true
     state: started
 
-- name: Add deploy user to docker and haproxy groups
+- name: Add ansible user to docker and haproxy groups
   ansible.builtin.user:
-    name: "{{ deploy_user }}"
+    name: "{{ ansible_user }}"
     groups:
       - docker
       - haproxy
