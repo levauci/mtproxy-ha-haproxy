@@ -1,0 +1,2 @@
+---
+# All variables come from group_vars/all.yml (shared across roles).

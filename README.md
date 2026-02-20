@@ -131,6 +131,26 @@ Ansible:
 3. Перегенерирует `haproxy.cfg` из шаблона
 4. Выполнит `systemctl reload haproxy` (без разрыва существующих соединений)
 
+## Теги (избирательный запуск)
+
+```bash
+# Только масштабирование контейнеров + обновление HAProxy конфига
+ansible-playbook playbooks/deploy.yml --tags scale
+
+# Только обновление HAProxy конфига
+ansible-playbook playbooks/deploy.yml --tags config
+
+# Только smoke-тесты (проверить здоровье стека)
+ansible-playbook playbooks/deploy.yml --tags verify
+```
+
+| Тег | Роли |
+|-----|------|
+| `setup` | common, tproxy |
+| `scale` | mtproxy, haproxy |
+| `config` | haproxy |
+| `verify` | verify (smoke-тесты) |
+
 ## Ручной запуск Ansible (без Vagrant provisioner)
 
 ```bash
@@ -157,7 +177,8 @@ roles/
 ├── common/    — базовые пакеты (Docker, HAProxy, iptables, QEMU binfmt)
 ├── tproxy/    — sysctl, iptables TPROXY, systemd unit
 ├── mtproxy/   — Docker-контейнеры MTProxy (масштабируемые через mtproxy_replicas)
-└── haproxy/   — конфигурация HAProxy, systemd drop-in для capabilities
+├── haproxy/   — конфигурация HAProxy, systemd drop-in для capabilities
+└── verify/    — smoke-тесты (контейнеры, бэкенды UP, stats page)
 ```
 
 Каждая роль содержит: `tasks/`, `handlers/`, `defaults/`, `meta/`, `templates/` (где применимо).

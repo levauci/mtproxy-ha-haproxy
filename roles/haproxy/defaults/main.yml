@@ -2,5 +2,3 @@
 haproxy_port: 443
 haproxy_stats_port: 8404
 haproxy_balance_algorithm: "leastconn"
-mtproxy_replicas: 2
-mtproxy_base_port: 10000
