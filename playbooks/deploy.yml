@@ -1,5 +1,9 @@
-- hosts: mtproxy-server
-  become: yes
+---
+- name: Deploy MTProxy HA stack
+  hosts: all
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
   roles:
     - common
     - tproxy

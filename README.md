@@ -1,12 +1,15 @@
 # Active-Active MTProxy + HAProxy + TPROXY
 
-Проект поднимает два MTProxy-инстанса на одной машине, балансирует TCP-подключения через HAProxy и поддерживает failover при остановке одного контейнера.
+Два MTProxy-инстанса на одной машине, TCP-балансировка через HAProxy с failover и сохранением реального IP клиента (TPROXY).
 
 ## Почему выбрано это решение
 
-- **HAProxy в TCP-режиме**: надежный L4-балансировщик с health-check и reload без остановки процесса.
-- **TPROXY + transparent bind**: позволяет сохранять исходный IP клиента в сетевых пакетах при проксировании.
-- **Ansible роли**: конфигурация разбита на `common`, `tproxy`, `mtproxy`, `haproxy` для прозрачной поддержки и масштабирования.
+| Компонент | Зачем |
+|-----------|-------|
+| **HAProxy (TCP mode)** | L4-балансировка с health-check, graceful reload без разрыва соединений |
+| **TPROXY + transparent** | Сохранение исходного IP клиента в пакетах (в отличие от DNAT/SNAT, backend видит реальный адрес) |
+| **leastconn** | Равномерное распределение при разном числе активных подключений на backend-ах |
+| **Ansible роли** | Разделение на `common`, `tproxy`, `mtproxy`, `haproxy` для масштабируемости и читаемости |
 
 ## Архитектура
 
@@ -18,28 +21,33 @@ Client -> HAProxy (port 443, TCP, transparent)
 
 ## Требования
 
-- Vagrant (QEMU provider)
-- Ansible
+- Vagrant + [vagrant-qemu](https://github.com/ppggff/vagrant-qemu) plugin
+- Ansible >= 2.12
 
 ## Переменные
 
-Основные переменные находятся в `inventory/group_vars/all.yml`.
+Единый файл переменных: `group_vars/all.yml`
 
-```yaml
-mtproxy_replicas: 2
-mtproxy_image: "telegrammessenger/proxy:latest"
-mtproxy_secret: "dd00000000000000000000000000000000"
-mtproxy_base_port: 10000
-haproxy_port: 443
-haproxy_stats_port: 8404
-haproxy_balance_algorithm: "leastconn"
-```
+| Переменная | По умолчанию | Описание |
+|------------|-------------|----------|
+| `mtproxy_replicas` | `2` | Количество MTProxy контейнеров |
+| `mtproxy_image` | `telegrammessenger/proxy:latest` | Docker-образ |
+| `mtproxy_secret` | `dd0000...` | Секрет для Telegram-клиентов (32 hex) |
+| `mtproxy_base_port` | `10000` | Базовый порт (контейнеры получают 10000, 10001, …) |
+| `haproxy_port` | `443` | Внешний порт приёма соединений |
+| `haproxy_balance_algorithm` | `leastconn` | Алгоритм балансировки |
 
 ## Развёртывание
 
 ```bash
+# Поднять VM и задеплоить (Ansible запускается автоматически через Vagrant provisioner)
 vagrant up --provider=qemu
-ansible-playbook playbooks/deploy.yml
+```
+
+Повторный деплой (например, после изменения переменных):
+
+```bash
+vagrant provision
 ```
 
 ## Проверка после deploy
@@ -47,49 +55,97 @@ ansible-playbook playbooks/deploy.yml
 ```bash
 vagrant ssh
 
-# 1) Проверить, что подняты два MTProxy контейнера
+# Два контейнера запущены
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+# NAMES       STATUS          PORTS
+# mtproxy1    Up X minutes    0.0.0.0:10000->443/tcp
+# mtproxy2    Up X minutes    0.0.0.0:10001->443/tcp
 
-# 2) Проверить HAProxy backend-ы
-curl -s http://127.0.0.1:8404/stats | grep -E "mtp1|mtp2"
+# HAProxy backend-ы UP
+echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,2,18
+# mtproxies,mtp1,UP
+# mtproxies,mtp2,UP
 
-# 3) Проверить health-check события
-journalctl -u haproxy -n 100 --no-pager
+# Или через stats-страницу (доступна с хоста на http://127.0.0.1:8404/stats)
+curl -s http://127.0.0.1:8404/stats | grep -oE "mtp[0-9]+</td><td>[^<]+"
 ```
 
-## Проверка failover (кейс из задания)
+## Проверка failover
 
 ```bash
-# Остановить второй инстанс
+vagrant ssh
+
+# 1. Убедиться, что оба backend-а UP
+echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,2,18
+# mtproxies,mtp1,UP
+# mtproxies,mtp2,UP
+
+# 2. Остановить второй инстанс
 docker stop mtproxy2
 
-# Убедиться, что mtproxy2 стал DOWN, mtproxy1 остался UP
-curl -s http://127.0.0.1:8404/stats | grep -E "mtp1|mtp2"
+# 3. Подождать ~6 сек (inter 2000 * fall 3) и проверить статус
+echo "show stat" | socat stdio /run/haproxy/admin.sock | grep mtp | cut -d, -f1,2,18
+# mtproxies,mtp1,UP
+# mtproxies,mtp2,DOWN
 
-# Проверить, что HAProxy зафиксировал недоступность backend-а
-journalctl -u haproxy -n 100 --no-pager | grep -E "mtp2|DOWN|UP"
+# 4. В логах HAProxy видно событие
+journalctl -u haproxy --no-pager -n 20 | grep -E "DOWN|UP"
+# ... Server mtproxies/mtp2 is DOWN ...
+
+# 5. Новые подключения продолжают обслуживаться через mtp1
+
+# 6. Вернуть обратно
+docker start mtproxy2
+# Через ~4 сек (inter 2000 * rise 2):
+# ... Server mtproxies/mtp2 is UP ...
 ```
 
-Ожидаемый результат: HAProxy помечает `mtp2` как `DOWN`, продолжает проксировать трафик на `mtp1`, подключения продолжают обслуживаться.
+**Итог**: при `docker stop mtproxy2` HAProxy автоматически переключает весь трафик на `mtproxy1`. Клиенты Telegram продолжают работать без разрыва.
 
-## Масштабирование
+## Масштабирование (scale)
 
-Чтобы увеличить число MTProxy-инстансов, измените:
+Изменить число реплик в `group_vars/all.yml`:
 
 ```yaml
 mtproxy_replicas: 3
 ```
 
-и повторно выполните:
+Применить:
 
 ```bash
-ansible-playbook playbooks/deploy.yml
+vagrant provision
 ```
 
-HAProxy конфиг генерируется из шаблона и применяется через reload (best effort, без полного простоя сервиса).
+Ansible:
+1. Создаст недостающие контейнеры (`mtproxy3`)
+2. Удалит лишние при scale-down
+3. Перегенерирует `haproxy.cfg` из шаблона
+4. Выполнит `systemctl reload haproxy` (без разрыва существующих соединений)
 
-## Telegram ссылка
+## Ручной запуск Ansible (без Vagrant provisioner)
+
+```bash
+# Сгенерировать SSH-конфиг из Vagrant
+vagrant ssh-config > .vagrant/ssh-config
+
+# Запустить playbook
+ansible-playbook playbooks/deploy.yml \
+  --ssh-extra-args="-F .vagrant/ssh-config"
+```
+
+## Telegram-ссылка
 
 ```text
-tg://proxy?server=YOUR_SERVER_IP&port=443&secret=dd00000000000000000000000000000000
+tg://proxy?server=YOUR_SERVER_IP&port=8443&secret=dd00000000000000000000000000000000
 ```
+
+(Порт `8443` — forwarded_port с хоста; на реальном сервере используйте `443` напрямую.)
+
+## Troubleshooting
+
+| Проблема | Решение |
+|----------|---------|
+| `vagrant provision` — timeout SSH | `vagrant reload` или увеличить `config.ssh.connect_timeout` в `Vagrantfile` |
+| HAProxy не стартует | `haproxy -c -f /etc/haproxy/haproxy.cfg` — проверить синтаксис конфига |
+| TPROXY не работает | `iptables -t mangle -L -n` — убедиться что chain `HAPROXY_TPROXY` существует |
+| Контейнер не стартует | `docker logs mtproxy1` — проверить секрет и образ |
