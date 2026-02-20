@@ -1,25 +1,7 @@
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Vagrant
 .vagrant/
-*.box
-
-# Ansible temporary
+.vscode/
+.idea/
 *.retry
-.cache/
-
-# Logs
 *.log
-
-# Secrets (если вдруг появятся)
-*.pem
-*.key
+*.swp
+.DS_Store

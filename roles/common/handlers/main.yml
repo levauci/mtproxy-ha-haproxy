@@ -1,2 +1,0 @@
----
-# No handlers needed; Docker is managed directly via systemd tasks.
