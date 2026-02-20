@@ -2,15 +2,14 @@
 set -euo pipefail
 
 CHAIN="HAPROXY_TPROXY"
-MARK="{{ tproxy_fwmark | default('1') }}"
-ROUTE_TABLE="{{ tproxy_route_table | default('100') }}"
+MARK="{{ tproxy_fwmark }}"
+ROUTE_TABLE="{{ tproxy_route_table }}"
 PORT="{{ haproxy_port }}"
 
-# Policy-routing: marked packets are delivered locally (required for TPROXY).
-ip rule add fwmark "${MARK}" lookup "${ROUTE_TABLE}" 2>/dev/null || true
+ip rule del fwmark "${MARK}" lookup "${ROUTE_TABLE}" 2>/dev/null || true
+ip rule add fwmark "${MARK}" lookup "${ROUTE_TABLE}"
 ip route replace local 0.0.0.0/0 dev lo table "${ROUTE_TABLE}"
 
-# Keep TPROXY logic isolated in its own chain, without flushing all mangle rules.
 iptables -t mangle -N "${CHAIN}" 2>/dev/null || true
 iptables -t mangle -F "${CHAIN}"
 iptables -t mangle -A "${CHAIN}" \

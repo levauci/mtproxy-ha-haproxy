@@ -1,11 +1,2 @@
 ---
 dependencies: []
-galaxy_info:
-  author: virton
-  description: Telegram MTProxy Docker containers with dynamic scaling
-  license: MIT
-  min_ansible_version: "2.12"
-  platforms:
-    - name: Ubuntu
-      versions:
-        - jammy

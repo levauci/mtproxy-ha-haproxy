@@ -1,11 +1,2 @@
 ---
 dependencies: []
-galaxy_info:
-  author: virton
-  description: TPROXY iptables rules and sysctl settings for transparent proxying
-  license: MIT
-  min_ansible_version: "2.12"
-  platforms:
-    - name: Ubuntu
-      versions:
-        - jammy

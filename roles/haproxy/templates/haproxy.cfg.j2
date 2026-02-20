@@ -12,21 +12,19 @@ defaults
     timeout server  1m
     log global
 
-# Stats (optional, for failover verification)
 listen stats
     mode http
-    bind *:{{ haproxy_stats_port | default(8404) }}
+    bind *:{{ haproxy_stats_port }}
     stats enable
     stats uri /stats
     stats refresh 5s
 
 frontend mtproto_in
     bind *:{{ haproxy_port }} transparent
-    mode tcp
     default_backend mtproxies
 
 backend mtproxies
-    balance {{ haproxy_balance_algorithm | default('leastconn') }}
+    balance {{ haproxy_balance_algorithm }}
     source 0.0.0.0 usesrc clientip
     option tcp-check
     option log-health-checks

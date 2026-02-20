@@ -29,8 +29,10 @@
   ansible.builtin.assert:
     that:
       - "item.stdout is match('UP.*')"
-    fail_msg: "Backend mtp{{ item.item }} status is '{{ item.stdout }}', expected 'UP'"
-    success_msg: "Backend mtp{{ item.item }} is {{ item.stdout }}"
+    fail_msg: >-
+      Backend mtp{{ item.item }} is '{{ item.stdout }}', expected UP
+    success_msg: >-
+      Backend mtp{{ item.item }} is {{ item.stdout }}
   loop: "{{ verify_backend_status.results }}"
   loop_control:
     label: "mtp{{ item.item }}"

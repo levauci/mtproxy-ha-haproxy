@@ -5,36 +5,36 @@
   vars_files:
     - ../group_vars/all.yml
   tasks:
-    - name: Apply common role
+    - name: Install base packages and Docker
       ansible.builtin.include_role:
         name: common
       tags: [common, setup]
 
-    - name: Flush handlers after common
+    - name: Flush handlers (common)
       ansible.builtin.meta: flush_handlers
 
-    - name: Apply tproxy role
+    - name: Configure TPROXY routing
       ansible.builtin.include_role:
         name: tproxy
       tags: [tproxy, setup]
 
-    - name: Flush handlers after tproxy
+    - name: Flush handlers (tproxy)
       ansible.builtin.meta: flush_handlers
 
-    - name: Apply mtproxy role
+    - name: Launch MTProxy containers
       ansible.builtin.include_role:
         name: mtproxy
       tags: [mtproxy, scale]
 
-    - name: Flush handlers after mtproxy
+    - name: Flush handlers (mtproxy)
       ansible.builtin.meta: flush_handlers
 
-    - name: Apply haproxy role
+    - name: Configure HAProxy
       ansible.builtin.include_role:
         name: haproxy
       tags: [haproxy, config, scale]
 
-    - name: Flush handlers after haproxy
+    - name: Flush handlers (haproxy)
       ansible.builtin.meta: flush_handlers
 
     - name: Run smoke tests

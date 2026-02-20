@@ -1,11 +1,2 @@
 ---
 dependencies: []
-galaxy_info:
-  author: virton
-  description: Post-deploy smoke tests for MTProxy HA stack
-  license: MIT
-  min_ansible_version: "2.12"
-  platforms:
-    - name: Ubuntu
-      versions:
-        - jammy
